@@ -8,9 +8,16 @@ function buildAuth() {
   const scopes = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
 
   if (process.env.GOOGLE_CREDENTIALS_BASE64) {
-    const credentials = JSON.parse(
-      Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString()
-    );
+    let credentials;
+    try {
+      credentials = JSON.parse(
+        Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString()
+      );
+    } catch {
+      throw new Error(
+        'GOOGLE_CREDENTIALS_BASE64 is invalid. Make sure you base64-encoded the entire JSON key file.'
+      );
+    }
     return new google.auth.GoogleAuth({ credentials, scopes });
   }
 
