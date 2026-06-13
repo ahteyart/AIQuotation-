@@ -197,12 +197,19 @@ bot.on('message', async (msg) => {
     try {
       const products = await getProducts();
       const query    = text.toLowerCase();
-      const found    = products.filter((p) =>
-        p.name.toLowerCase().includes(query) ||
-        (p.code && p.code.toLowerCase().includes(query)) ||
-        (p.description && p.description.toLowerCase().includes(query)) ||
-        (p.category && p.category.toLowerCase().includes(query))
-      );
+      const found    = products.filter((p) => {
+        const name = p.name.toLowerCase();
+        const code = (p.code || '').toLowerCase();
+        const desc = (p.description || '').toLowerCase();
+        const cat  = (p.category || '').toLowerCase();
+        // Match if query contains the product name OR product name contains query
+        return (
+          name.includes(query) || query.includes(name) ||
+          (code && (code.includes(query) || query.includes(code))) ||
+          desc.includes(query) || query.includes(desc.split(' ')[0]) ||
+          cat.includes(query)
+        );
+      });
 
       if (!found.length) {
         return bot.sendMessage(
