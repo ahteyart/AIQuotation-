@@ -1,10 +1,14 @@
 const TelegramBot = require('node-telegram-bot-api');
-const { getProducts }         = require('../services/googleSheets');
+const { getProducts }          = require('../services/googleSheets');
 const { generateQuotationPDF } = require('../services/pdfGenerator');
-const { sendQuotationEmail }  = require('../services/emailService');
-const { v4: uuidv4 }          = require('uuid');
-const fs                      = require('fs');
-const path                    = require('path');
+const { sendQuotationEmail }   = require('../services/emailService');
+const { chat: llmChat }        = require('../services/llmService');
+const { v4: uuidv4 }           = require('uuid');
+const fs                       = require('fs');
+const path                     = require('path');
+
+const USE_LLM = !!process.env.DEEPSEEK_API_KEY;
+const MAX_HISTORY = 20; // messages to keep per chat
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 
@@ -18,7 +22,16 @@ function session(chatId) {
 }
 
 function reset(chatId) {
-  sessions.set(chatId, { state: 'idle' });
+  const s = session(chatId);
+  const history = s.history || []; // preserve chat history across resets
+  sessions.set(chatId, { state: 'idle', history });
+}
+
+function addHistory(chatId, role, content) {
+  const s = session(chatId);
+  if (!s.history) s.history = [];
+  s.history.push({ role, content });
+  if (s.history.length > MAX_HISTORY) s.history.splice(0, s.history.length - MAX_HISTORY);
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -192,23 +205,33 @@ bot.on('message', async (msg) => {
   const s      = session(chatId);
   const text   = msg.text.trim();
 
-  // ── Free-text price search when idle ──────────────────────────────────────
+  // ── Free-text handler when idle ───────────────────────────────────────────
   if (s.state === 'idle') {
+    addHistory(chatId, 'user', text);
+
+    // ── LLM mode (DeepSeek) ───────────────────────────────────────────────
+    if (USE_LLM) {
+      const typing = bot.sendChatAction(chatId, 'typing');
+      try {
+        const products = await getProducts();
+        const reply    = await llmChat(s.history, products);
+        addHistory(chatId, 'assistant', reply);
+        await typing;
+        return bot.sendMessage(chatId, reply);
+      } catch (err) {
+        return bot.sendMessage(chatId, `❌ Error: ${err.message}`);
+      }
+    }
+
+    // ── Fallback keyword search (no API key) ──────────────────────────────
     try {
       const products = await getProducts();
       const query    = text.toLowerCase();
       const found    = products.filter((p) => {
         const name = p.name.toLowerCase();
         const code = (p.code || '').toLowerCase();
-        const desc = (p.description || '').toLowerCase();
-        const cat  = (p.category || '').toLowerCase();
-        // Match if query contains the product name OR product name contains query
-        return (
-          name.includes(query) || query.includes(name) ||
-          (code && (code.includes(query) || query.includes(code))) ||
-          desc.includes(query) || query.includes(desc.split(' ')[0]) ||
-          cat.includes(query)
-        );
+        return name.includes(query) || query.includes(name) ||
+               (code && (code.includes(query) || query.includes(code)));
       });
 
       if (!found.length) {
@@ -228,7 +251,6 @@ bot.on('message', async (msg) => {
         reply += '\n\n';
       }
       reply += `_Type /quote to generate a full quotation._`;
-
       return bot.sendMessage(chatId, reply, { parse_mode: 'Markdown' });
     } catch (err) {
       return bot.sendMessage(chatId, `❌ Error: ${err.message}`);
