@@ -1,4 +1,5 @@
 node_modules/
+fonts/
 .env
 google-credentials.json
 data/quotes.json

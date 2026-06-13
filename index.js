@@ -13,5 +13,9 @@ if (!process.env.TELEGRAM_BOT_TOKEN) {
   process.exit(1);
 }
 
-require('./bot/telegramBot');
-console.log('Quotation bot is running. Press Ctrl+C to stop.');
+const { ensureCJKFonts } = require('./services/fontService');
+
+ensureCJKFonts().then(() => {
+  require('./bot/telegramBot');
+  console.log('Quotation bot is running. Press Ctrl+C to stop.');
+});

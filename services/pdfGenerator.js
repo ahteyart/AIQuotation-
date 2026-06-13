@@ -1,4 +1,5 @@
 const PDFDocument = require('pdfkit');
+const { getFontPaths, cjkFontsAvailable } = require('./fontService');
 
 const PRIMARY = '#1e40af';
 const WHITE = '#ffffff';
@@ -41,6 +42,13 @@ function generateQuotationPDF(quotationData) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
+    // Register CJK fonts so Chinese/Japanese/Korean characters render correctly
+    if (cjkFontsAvailable()) {
+      const fp = getFontPaths();
+      doc.registerFont('Regular', fp.Regular);
+      doc.registerFont('Bold',    fp.Bold);
+    }
+
     const cfg = settings();
     const PW = doc.page.width;   // 595
     const ML = 50;               // left margin
@@ -50,18 +58,18 @@ function generateQuotationPDF(quotationData) {
     doc.rect(0, 0, PW, 130).fill(PRIMARY);
 
     // Company name
-    doc.font('Helvetica-Bold').fontSize(20).fillColor(WHITE)
+    doc.font(cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold').fontSize(20).fillColor(WHITE)
       .text(cfg.companyName, ML, 22, { width: CW * 0.55 });
 
     // Company details
-    doc.font('Helvetica').fontSize(8.5).fillColor(ACCENT_LIGHT);
+    doc.font(cjkFontsAvailable() ? 'Regular' : 'Helvetica').fontSize(8.5).fillColor(ACCENT_LIGHT);
     let infoY = 50;
     [cfg.companyAddress, cfg.companyPhone, cfg.companyEmail, cfg.companyWebsite]
       .filter(Boolean)
       .forEach((line) => { doc.text(line, ML, infoY); infoY += 13; });
 
     // QUOTATION title
-    doc.font('Helvetica-Bold').fontSize(26).fillColor(WHITE)
+    doc.font(cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold').fontSize(26).fillColor(WHITE)
       .text('QUOTATION', ML, 18, { width: CW, align: 'right' });
 
     // Quote meta
@@ -69,7 +77,7 @@ function generateQuotationPDF(quotationData) {
     const validUntil = new Date(quoteDate);
     validUntil.setDate(validUntil.getDate() + cfg.validDays);
 
-    doc.font('Helvetica').fontSize(9).fillColor(ACCENT_LIGHT);
+    doc.font(cjkFontsAvailable() ? 'Regular' : 'Helvetica').fontSize(9).fillColor(ACCENT_LIGHT);
     doc.text(`No: ${quotationData.quoteNumber}`, ML, 60, { width: CW, align: 'right' });
     doc.text(
       `Date: ${quoteDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
@@ -82,12 +90,12 @@ function generateQuotationPDF(quotationData) {
 
     // ── BILL TO ───────────────────────────────────────────────────────────────
     let y = 150;
-    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(MUTED).text('BILL TO', ML, y);
+    doc.font(cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold').fontSize(8.5).fillColor(MUTED).text('BILL TO', ML, y);
     y += 13;
-    doc.font('Helvetica-Bold').fontSize(13).fillColor(TEXT)
+    doc.font(cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold').fontSize(13).fillColor(TEXT)
       .text(quotationData.clientName || 'Client', ML, y);
     y += 18;
-    doc.font('Helvetica').fontSize(10).fillColor(MUTED);
+    doc.font(cjkFontsAvailable() ? 'Regular' : 'Helvetica').fontSize(10).fillColor(MUTED);
     if (quotationData.clientCompany) { doc.text(quotationData.clientCompany, ML, y); y += 14; }
     doc.text(quotationData.clientEmail || '', ML, y);
     y += 35;
@@ -107,7 +115,7 @@ function generateQuotationPDF(quotationData) {
     // Header row
     const HDR_H = 24;
     doc.rect(ML, y, CW, HDR_H).fill(PRIMARY);
-    doc.font('Helvetica-Bold').fontSize(8).fillColor(WHITE);
+    doc.font(cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold').fontSize(8).fillColor(WHITE);
 
     const headers = [
       { col: 'num',   label: '#',          align: 'center' },
@@ -139,29 +147,29 @@ function generateQuotationPDF(quotationData) {
       doc.rect(ML, y, CW, ROW_H).strokeColor(BORDER).lineWidth(0.5).stroke();
 
       // Row number
-      doc.font('Helvetica-Bold').fontSize(8).fillColor(TEXT);
+      doc.font(cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold').fontSize(8).fillColor(TEXT);
       doc.text(`${i + 1}`, C.num.x + 3, y + 11, { width: C.num.w - 6, align: 'center' });
 
       // Product name
-      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(TEXT)
+      doc.font(cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold').fontSize(8.5).fillColor(TEXT)
         .text(p.name || '', C.name.x + 3, y + 7, { width: C.name.w - 6, lineBreak: false });
 
       // Code under name
       if (p.code) {
-        doc.font('Helvetica').fontSize(7).fillColor(MUTED)
+        doc.font(cjkFontsAvailable() ? 'Regular' : 'Helvetica').fontSize(7).fillColor(MUTED)
           .text(p.code, C.name.x + 3, y + 18, { width: C.name.w - 6, lineBreak: false });
       }
 
       // Description
-      doc.font('Helvetica').fontSize(8).fillColor(MUTED)
+      doc.font(cjkFontsAvailable() ? 'Regular' : 'Helvetica').fontSize(8).fillColor(MUTED)
         .text(p.description || '', C.desc.x + 3, y + 11, { width: C.desc.w - 6, lineBreak: false });
 
       // Unit / Qty / Price / Total
-      doc.font('Helvetica').fontSize(8.5).fillColor(TEXT);
+      doc.font(cjkFontsAvailable() ? 'Regular' : 'Helvetica').fontSize(8.5).fillColor(TEXT);
       doc.text(p.unit || 'pcs', C.unit.x + 3,  y + 11, { width: C.unit.w - 6,  align: 'center' });
       doc.text(`${qty}`,        C.qty.x + 3,   y + 11, { width: C.qty.w - 6,   align: 'center' });
       doc.text(fmt(cfg.currency, price), C.price.x + 3, y + 11, { width: C.price.w - 6, align: 'right' });
-      doc.font('Helvetica-Bold')
+      doc.font(cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold')
         .text(fmt(cfg.currency, total), C.total.x + 3, y + 11, { width: C.total.w - 6, align: 'right' });
 
       y += ROW_H;
@@ -181,9 +189,9 @@ function generateQuotationPDF(quotationData) {
     const TX = ML + CW - 220;
 
     const row = (label, value, bold = false) => {
-      doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(10).fillColor(MUTED)
+      doc.font(bold ? cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold' : cjkFontsAvailable() ? 'Regular' : 'Helvetica').fontSize(10).fillColor(MUTED)
         .text(label, TX, y, { width: 120, align: 'right' });
-      doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(10).fillColor(TEXT)
+      doc.font(bold ? cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold' : cjkFontsAvailable() ? 'Regular' : 'Helvetica').fontSize(10).fillColor(TEXT)
         .text(value, TX + 120, y, { width: 95, align: 'right' });
       y += 18;
     };
@@ -193,16 +201,16 @@ function generateQuotationPDF(quotationData) {
 
     // Grand total band
     doc.rect(TX, y, 215, 32).fill(PRIMARY);
-    doc.font('Helvetica-Bold').fontSize(12).fillColor(WHITE);
+    doc.font(cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold').fontSize(12).fillColor(WHITE);
     doc.text('GRAND TOTAL:', TX + 5, y + 10, { width: 110, align: 'right' });
     doc.text(fmt(cfg.currency, grand), TX + 115, y + 10, { width: 95, align: 'right' });
     y += 45;
 
     // ── NOTES ────────────────────────────────────────────────────────────────
     if (quotationData.notes) {
-      doc.font('Helvetica-Bold').fontSize(10).fillColor(TEXT).text('Notes:', ML, y);
+      doc.font(cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold').fontSize(10).fillColor(TEXT).text('Notes:', ML, y);
       y += 14;
-      doc.font('Helvetica').fontSize(9).fillColor(MUTED)
+      doc.font(cjkFontsAvailable() ? 'Regular' : 'Helvetica').fontSize(9).fillColor(MUTED)
         .text(quotationData.notes, ML, y, { width: CW });
       y += doc.heightOfString(quotationData.notes, { width: CW }) + 20;
     }
@@ -212,9 +220,9 @@ function generateQuotationPDF(quotationData) {
     doc.moveTo(ML, termsY).lineTo(ML + CW, termsY)
       .strokeColor(BORDER).lineWidth(1).stroke();
 
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(MUTED)
+    doc.font(cjkFontsAvailable() ? 'Bold' : 'Helvetica-Bold').fontSize(9).fillColor(MUTED)
       .text('Terms & Conditions', ML, termsY + 10);
-    doc.font('Helvetica').fontSize(8.5).fillColor('#94a3b8')
+    doc.font(cjkFontsAvailable() ? 'Regular' : 'Helvetica').fontSize(8.5).fillColor('#94a3b8')
       .text(
         `1. This quotation is valid for ${cfg.validDays} days from the date of issue.\n` +
         '2. Prices are subject to change without notice after the validity period.\n' +
@@ -223,7 +231,7 @@ function generateQuotationPDF(quotationData) {
         ML, termsY + 24, { width: CW }
       );
 
-    doc.font('Helvetica').fontSize(8).fillColor('#94a3b8')
+    doc.font(cjkFontsAvailable() ? 'Regular' : 'Helvetica').fontSize(8).fillColor('#94a3b8')
       .text('Thank you for your business!', ML, doc.page.height - 35, {
         width: CW,
         align: 'center',
