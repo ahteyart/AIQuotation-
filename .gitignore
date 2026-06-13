@@ -1,0 +1,7 @@
+node_modules/
+.env
+google-credentials.json
+data/quotes.json
+*.pdf
+.DS_Store
+npm-debug.log*
