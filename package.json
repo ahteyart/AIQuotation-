@@ -2,15 +2,13 @@
   "name": "aiquotation",
   "version": "1.0.0",
   "description": "AI Quotation Assistant – Telegram bot + Google Sheets + PDF + Email",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "dependencies": {
-    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "express": "^4.18.2",
     "googleapis": "^128.0.0",
     "node-telegram-bot-api": "^0.64.0",
     "nodemailer": "^6.9.7",
