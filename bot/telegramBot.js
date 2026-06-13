@@ -184,13 +184,49 @@ bot.onText(/\/quote$/, (msg) => {
   );
 });
 
-// ── Text message handler (wizard steps) ────────────────────────────────────
+// ── Text message handler (wizard steps + free-text price search) ───────────
 bot.on('message', async (msg) => {
   if (!msg.text || msg.text.startsWith('/')) return;
 
   const chatId = msg.chat.id;
   const s      = session(chatId);
   const text   = msg.text.trim();
+
+  // ── Free-text price search when idle ──────────────────────────────────────
+  if (s.state === 'idle') {
+    try {
+      const products = await getProducts();
+      const query    = text.toLowerCase();
+      const found    = products.filter((p) =>
+        p.name.toLowerCase().includes(query) ||
+        (p.code && p.code.toLowerCase().includes(query)) ||
+        (p.description && p.description.toLowerCase().includes(query)) ||
+        (p.category && p.category.toLowerCase().includes(query))
+      );
+
+      if (!found.length) {
+        return bot.sendMessage(
+          chatId,
+          `🔍 No products found for "*${text}*".\n\nTry /list to see all available products.`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+
+      let reply = `🔍 *Price for "${text}"*\n\n`;
+      for (const p of found) {
+        reply += `📦 *${p.name}*`;
+        if (p.code) reply += ` _(${p.code})_`;
+        reply += `\n💰 Price: *${fmt(p.sellingPrice)}* / ${p.unit}`;
+        if (p.description) reply += `\n_${p.description}_`;
+        reply += '\n\n';
+      }
+      reply += `_Type /quote to generate a full quotation._`;
+
+      return bot.sendMessage(chatId, reply, { parse_mode: 'Markdown' });
+    } catch (err) {
+      return bot.sendMessage(chatId, `❌ Error: ${err.message}`);
+    }
+  }
 
   // Step 1 – Client name
   if (s.state === 'name') {
