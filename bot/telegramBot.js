@@ -423,11 +423,11 @@ async function generateAndSend(chatId, s, origMsgId) {
 
     // Send PDF as document in Telegram
     await bot.sendDocument(chatId, pdfBuffer, {
-      filename: `quotation-${quoteNumber}.pdf`,
-      contentType: 'application/pdf',
-    }, {
       caption: `📄 *Quotation ${quoteNumber}* for ${s.clientName}`,
       parse_mode: 'Markdown',
+    }, {
+      filename: `Quotation-${quoteNumber}.pdf`,
+      contentType: 'application/pdf',
     });
 
     // Try to email
